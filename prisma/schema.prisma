@@ -1,0 +1,338 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum UserRole {
+  CUSTOMER
+  ADMIN
+  CATALOG_STAFF
+  INVENTORY_STAFF
+  FULFILLMENT_STAFF
+  FINANCE_STAFF
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                 String              @id @default(uuid()) @db.Uuid
+  name               String?
+  email              String              @unique
+  emailVerified      DateTime?
+  password           String?
+  image              String?
+  role               UserRole            @default(CUSTOMER)
+  disabledAt         DateTime?
+  authVersion        Int                 @default(0)
+  mfaSecret          String?             @db.Text
+  mfaEnabledAt       DateTime?
+  mfaLastStep        Int?
+  createdAt          DateTime            @default(now())
+  accounts           Account[]
+  sessions           Session[]
+  cart               Cart?
+  orders             Order[]
+  confirmedPayments  Payment[]           @relation("PaymentConfirmedBy")
+  refundedPayments   Payment[]           @relation("PaymentRefundedBy")
+  auditEvents        AuditLog[]
+  adminRecoveryCodes AdminRecoveryCode[]
+  authThrottle       AdminAuthThrottle?
+}
+
+model AdminAuthThrottle {
+  userId          String    @id @db.Uuid
+  failureCount    Int       @default(0)
+  windowStartedAt DateTime  @default(now())
+  lockedUntil     DateTime?
+  updatedAt       DateTime  @updatedAt
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([lockedUntil])
+}
+
+model AdminRecoveryCode {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  tokenHash String    @unique
+  createdAt DateTime  @default(now())
+  usedAt    DateTime?
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, usedAt])
+}
+
+model Account {
+  id                String  @id @default(uuid()) @db.Uuid
+  userId            String  @db.Uuid
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(uuid()) @db.Uuid
+  sessionToken String   @unique
+  userId       String   @db.Uuid
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model PendingAccount {
+  email     String   @id
+  name      String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([expiresAt])
+}
+
+model Category {
+  id          String    @id @default(uuid()) @db.Uuid
+  name        String
+  slug        String    @unique
+  description String?
+  createdAt   DateTime  @default(now())
+  products    Product[]
+}
+
+model Product {
+  id               String                 @id @default(uuid()) @db.Uuid
+  name             String
+  slug             String                 @unique
+  shortDescription String
+  description      String
+  price            Int // kobo
+  compareAtPrice   Int? // kobo
+  image            String
+  gallery          Json?
+  subcategory      String?
+  sku              String                 @unique
+  stock            Int                    @default(0)
+  featured         Boolean                @default(false)
+  published        Boolean                @default(false)
+  categoryId       String                 @db.Uuid
+  createdAt        DateTime               @default(now())
+  category         Category               @relation(fields: [categoryId], references: [id])
+  orderItems       OrderItem[]
+  reservations     InventoryReservation[]
+  variants         ProductVariant[]
+  cartItems        CartItem[]
+
+  @@index([published, featured, createdAt])
+}
+
+model Cart {
+  id         String     @id @default(uuid()) @db.Uuid
+  guestToken String?    @unique
+  userId     String?    @unique @db.Uuid
+  expiresAt  DateTime?
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  user       User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items      CartItem[]
+  orders     Order[]
+
+  @@index([expiresAt])
+}
+
+model DeliveryZone {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @unique
+  deliveryFee Int // kobo
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  orders      Order[]
+
+  @@index([active, name])
+}
+
+model CartItem {
+  id        String          @id @default(uuid()) @db.Uuid
+  cartId    String          @db.Uuid
+  productId String          @db.Uuid
+  variantId String?         @db.Uuid
+  lineKey   String
+  quantity  Int
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  cart      Cart            @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product   Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variant   ProductVariant? @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@unique([cartId, lineKey])
+  @@index([productId])
+  @@index([variantId])
+}
+
+model ProductVariant {
+  id           String                 @id @default(uuid()) @db.Uuid
+  productId    String                 @db.Uuid
+  sku          String                 @unique
+  name         String
+  attributes   Json?
+  price        Int? // kobo
+  stock        Int                    @default(0)
+  active       Boolean                @default(true)
+  createdAt    DateTime               @default(now())
+  product      Product                @relation(fields: [productId], references: [id], onDelete: Cascade)
+  cartItems    CartItem[]
+  orderItems   OrderItem[]
+  reservations InventoryReservation[]
+
+  @@index([productId])
+}
+
+model Order {
+  id                 String                 @id @default(uuid()) @db.Uuid
+  userId             String?                @db.Uuid
+  cartId             String?                @db.Uuid
+  idempotencyKey     String?                @unique
+  customerName       String?
+  customerEmail      String?
+  customerPhone      String?
+  deliveryMethod     String?
+  deliveryFee        Int                    @default(0) // kobo
+  deliveryZoneId     String?                @db.Uuid
+  deliveryZoneName   String?
+  deliveryAddress    String?
+  dispatchProvider   String?
+  dispatchReference  String?
+  cancellationReason String?
+  cancelledAt        DateTime?
+  status             String                 @default("pending")
+  total              Int // kobo
+  currency           String                 @default("NGN")
+  expiresAt          DateTime?
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+  user               User?                  @relation(fields: [userId], references: [id], onDelete: SetNull)
+  cart               Cart?                  @relation(fields: [cartId], references: [id], onDelete: SetNull)
+  deliveryZone       DeliveryZone?          @relation(fields: [deliveryZoneId], references: [id], onDelete: SetNull)
+  items              OrderItem[]
+  reservations       InventoryReservation[]
+  invoiceAccesses    InvoiceAccess[]
+  payment            Payment?
+  notifications      Notification[]
+
+  @@index([status, expiresAt])
+}
+
+model OrderItem {
+  id          String          @id @default(uuid()) @db.Uuid
+  orderId     String          @db.Uuid
+  productId   String?         @db.Uuid
+  variantId   String?         @db.Uuid
+  variantName String?
+  name        String
+  quantity    Int
+  unitPrice   Int // kobo
+  order       Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product     Product?        @relation(fields: [productId], references: [id], onDelete: SetNull)
+  variant     ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+}
+
+model InventoryReservation {
+  id         String          @id @default(uuid()) @db.Uuid
+  orderId    String          @db.Uuid
+  productId  String          @db.Uuid
+  variantId  String?         @db.Uuid
+  lineKey    String
+  quantity   Int
+  expiresAt  DateTime
+  releasedAt DateTime?
+  createdAt  DateTime        @default(now())
+  order      Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product    Product         @relation(fields: [productId], references: [id], onDelete: Restrict)
+  variant    ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+
+  @@unique([orderId, lineKey])
+  @@index([variantId])
+  @@index([expiresAt, releasedAt])
+}
+
+model InvoiceAccess {
+  id        String   @id @default(uuid()) @db.Uuid
+  orderId   String   @db.Uuid
+  tokenHash String   @unique
+  createdAt DateTime @default(now())
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, createdAt])
+}
+
+model Payment {
+  id                    String    @id @default(uuid()) @db.Uuid
+  orderId               String    @unique @db.Uuid
+  method                String
+  reference             String    @unique
+  status                String    @default("pending")
+  amount                Int // kobo
+  provider              String?
+  bankTransferReference String?   @unique
+  confirmedAt           DateTime?
+  confirmedById         String?   @db.Uuid
+  refundReference       String?   @unique
+  refundedAt            DateTime?
+  refundedById          String?   @db.Uuid
+  createdAt             DateTime  @default(now())
+  order                 Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  confirmedBy           User?     @relation("PaymentConfirmedBy", fields: [confirmedById], references: [id], onDelete: SetNull)
+  refundedBy            User?     @relation("PaymentRefundedBy", fields: [refundedById], references: [id], onDelete: SetNull)
+}
+
+model Notification {
+  id            String    @id @default(uuid()) @db.Uuid
+  orderId       String?   @db.Uuid
+  eventType     String
+  channel       String
+  recipient     String?
+  payload       Json?
+  secretPayload String?
+  status        String    @default("queued")
+  attempts      Int       @default(0)
+  availableAt   DateTime  @default(now())
+  lockedAt      DateTime?
+  sentAt        DateTime?
+  lastError     String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  order         Order?    @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@index([status, availableAt, createdAt])
+  @@index([orderId, createdAt])
+}
+
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  actorId    String?  @db.Uuid
+  action     String
+  entityType String
+  entityId   String
+  details    Json?
+  createdAt  DateTime @default(now())
+  actor      User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId, createdAt])
+}

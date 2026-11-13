@@ -1,0 +1,1 @@
+This migration adds the predefined DEGEMS staff roles to the PostgreSQL `UserRole` enum. It does not promote or modify any existing accounts. Only an owner/admin should assign roles through the staff-management workflow after the migration is applied and verified on a dedicated test database.

@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="800" viewBox="0 0 800 800" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="77" y1="40" x2="720" y2="762" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#E4E9F0"/>
+      <stop offset="1" stop-color="#C1CCD9"/>
+    </linearGradient>
+    <linearGradient id="block" x1="270" y1="305" x2="530" y2="562" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#D3A56C"/>
+      <stop offset="1" stop-color="#AE7748"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="800" rx="40" fill="url(#bg)"/>
+  <circle cx="640" cy="157" r="115" fill="#FAFCFF" fill-opacity=".62"/>
+  <path d="M0 624c148-59 255 77 408 12 166-70 246-46 392 0v164H0V624Z" fill="#778BA1" fill-opacity=".22"/>
+  <rect x="255" y="338" width="144" height="144" rx="24" fill="#D98979"/>
+  <rect x="401" y="338" width="144" height="144" rx="24" fill="url(#block)"/>
+  <rect x="328" y="484" width="144" height="144" rx="24" fill="#7E9A8B"/>
+  <path d="M327 379h0m73 0h0m73 0h0m-73 73h0m-73 73h0m146 0h0m-73 73h0" stroke="#FFF8ED" stroke-width="19" stroke-linecap="round"/>
+  <path d="M324 326c10-40 54-57 83-32m67 28c10-39 54-57 83-31" stroke="#FFF8ED" stroke-opacity=".9" stroke-width="10" stroke-linecap="round"/>
+  <rect x="280" y="647" width="240" height="62" rx="31" fill="#FAFCFF" fill-opacity=".84"/>
+  <text x="400" y="686" text-anchor="middle" fill="#53677B" font-family="Arial,sans-serif" font-size="22" font-weight="700" letter-spacing="6">BABY &amp; KIDS</text>
+  <text x="44" y="754" fill="#53677B" font-family="Arial,sans-serif" font-size="16" font-weight="700" letter-spacing="4">PREVIEW IMAGE</text>
+</svg>

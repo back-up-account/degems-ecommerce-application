@@ -1,0 +1,1 @@
+Place the TLS certificate chain at `fullchain.pem` and its private key at `privkey.pem` on the deployment host. This directory is excluded from version control and the Docker build context. Provision and renew certificates using the deployment platform; never commit private keys.

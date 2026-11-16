@@ -1,0 +1,186 @@
+@import 'tailwindcss';
+@source '..';
+@source '../components';
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-white: var(--degems-surface);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --color-degems-brand: var(--degems-brand);
+  --color-degems-surface: var(--degems-surface);
+  --color-degems-sage: var(--degems-sage);
+  --color-degems-border: var(--degems-border);
+  --color-degems-muted: var(--degems-muted);
+  --color-degems-action: var(--degems-action);
+  --color-degems-action-ink: var(--degems-action-ink);
+  --color-degems-action-hover: var(--degems-action-hover);
+  --color-degems-action-active: var(--degems-action-active);
+  --color-degems-secondary-action: var(--degems-secondary-action);
+  --color-stone-50: var(--degems-background);
+  --color-stone-100: var(--degems-sage);
+  --color-stone-200: var(--degems-border);
+  --color-stone-300: var(--degems-border);
+  --color-stone-400: var(--degems-muted);
+  --color-stone-500: var(--degems-muted);
+  --color-stone-600: var(--degems-muted);
+  --color-stone-700: var(--degems-text);
+  --color-stone-800: var(--degems-text);
+  --color-stone-900: var(--degems-text);
+  --color-stone-950: var(--degems-brand);
+  --color-brass-100: var(--degems-sage);
+  --color-brass-200: var(--degems-sage);
+  --color-brass-500: var(--degems-brand);
+  --color-brass-600: var(--degems-brand);
+  --color-emerald-50: var(--degems-sage);
+  --color-emerald-200: var(--degems-border);
+  --color-emerald-700: var(--degems-brand);
+  --color-emerald-800: var(--degems-brand);
+  --color-emerald-900: var(--degems-brand);
+  --color-amber-50: #fff4dc;
+  --color-amber-200: #e8c882;
+  --color-amber-700: #81540d;
+  --color-amber-800: #704608;
+  --color-amber-900: #573400;
+  --color-amber-950: #422900;
+  --color-red-600: #b42318;
+  --color-red-700: #9c1c16;
+}
+
+@layer base {
+  :root {
+    --degems-brand: #24231F;
+    --degems-background: #F4F2EC;
+    --degems-surface: #FFFFFF;
+    --degems-action: #191916;
+    --degems-action-ink: #FFFFFF;
+    --degems-action-hover: #373630;
+    --degems-action-active: #4B4A43;
+    --degems-text: #24231F;
+    --degems-muted: #716F68;
+    --degems-sage: #EAE8E1;
+    --degems-border: #E3E1DA;
+    --degems-secondary-action: var(--degems-sage);
+    --background: var(--degems-background);
+    --foreground: var(--degems-text);
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  }
+
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  a {
+    text-decoration: none;
+  }
+
+  img {
+    display: block;
+    max-width: 100%;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--degems-brand);
+    outline-offset: 2px;
+  }
+}
+
+.storefront-shell input:not([type='hidden']):not([type='radio']):not([type='checkbox']),
+.storefront-shell select,
+.storefront-shell textarea {
+  border-color: var(--degems-border);
+}
+
+.storefront-mobile-nav {
+  scrollbar-width: none;
+}
+
+.storefront-mobile-nav::-webkit-scrollbar {
+  display: none;
+}
+
+.storefront-shell main :is(
+  button.bg-stone-900,
+  a.bg-stone-900.inline-flex,
+  a.bg-stone-900.block
+) {
+  background-color: var(--degems-action);
+  color: var(--degems-action-ink);
+  cursor: pointer;
+  transition: background-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.storefront-shell main :is(
+  button.bg-stone-900,
+  a.bg-stone-900.inline-flex,
+  a.bg-stone-900.block
+):hover:not(:disabled) {
+  background-color: var(--degems-action-hover);
+}
+
+.storefront-shell main :is(
+  button.bg-stone-900,
+  a.bg-stone-900.inline-flex,
+  a.bg-stone-900.block
+):active:not(:disabled) {
+  background-color: var(--degems-action-active);
+  transform: translateY(1px);
+}
+
+.storefront-shell main :is(
+  button.bg-stone-900,
+  a.bg-stone-900.inline-flex,
+  a.bg-stone-900.block
+):disabled {
+  cursor: not-allowed;
+}
+
+.storefront-shell main :is(
+  a.border-stone-200:not(.bg-stone-900),
+  button.border-stone-200:not(.bg-stone-900)
+):hover:not(:disabled) {
+  background-color: var(--degems-secondary-action);
+  border-color: var(--degems-muted);
+  color: var(--foreground);
+}
+
+.storefront-shell main :is(
+  a.border-stone-200:not(.bg-stone-900),
+  button.border-stone-200:not(.bg-stone-900)
+):active:not(:disabled) {
+  background-color: var(--degems-sage);
+}
+
+.storefront-product-gallery > div > div:first-child img {
+  background-color: var(--background);
+  object-fit: contain;
+}
+
+.storefront-cart-images article > img {
+  background-color: var(--degems-sage);
+  object-fit: contain;
+}
+
+.storefront-editorial-heading {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-weight: 400;
+}

@@ -6,7 +6,7 @@ import {
   findValidTotpStep,
   generateAdminRecoveryCodes,
   hashAdminRecoveryCode,
-} from '@/lib/admin-mfa';
+} from '@api/lib/admin-mfa';
 
 const RFC_SECRET = 'GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ';
 const ENCRYPTION_KEY = Buffer.alloc(32, 7).toString('base64');

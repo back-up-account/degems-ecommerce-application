@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ProductImageValidationError, validateProductImageFile } from '@/lib/product-image-validation';
+import { ProductImageValidationError, validateProductImageFile } from '@api/lib/product-image-validation';
 
 describe('product image upload validation', () => {
   it.each([

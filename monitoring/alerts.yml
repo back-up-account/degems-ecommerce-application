@@ -1,0 +1,53 @@
+groups:
+  - name: degems-availability
+    rules:
+      - alert: DegemsMetricsUnavailable
+        expr: up{job="degems-api"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: DEGEMS backend API metrics are unavailable
+          description: The authenticated backend API metrics endpoint has failed to scrape for at least two minutes.
+
+      - alert: DegemsHighHttpErrorRate
+        expr: |
+          sum(rate(ecommerce_http_requests_total{status=~"5.."}[5m]))
+          /
+          clamp_min(sum(rate(ecommerce_http_requests_total[5m])), 0.001)
+          > 0.05
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: DEGEMS server error rate is elevated
+          description: More than five percent of application requests have returned 5xx responses for ten minutes.
+
+  - name: degems-operations
+    rules:
+      - alert: DegemsExpiredReservationsNotReleased
+        expr: inventory_reservations_current{status="expired_unreleased"} > 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: Expired inventory reservations need attention
+          description: One or more expired reservations remain unreleased; check the order expiry worker.
+
+      - alert: DegemsFailedNotificationJobs
+        expr: ecommerce_notification_jobs{status="failed"} > 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: DEGEMS has failed notification jobs
+          description: Review the failed notification queue and provider configuration in the admin dashboard.
+
+      - alert: DegemsNotificationQueueStale
+        expr: ecommerce_notification_oldest_age_seconds{status="queued"} > 1800
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: DEGEMS notification queue is delayed
+          description: The oldest queued notification is more than 30 minutes old; verify the dispatcher schedule.

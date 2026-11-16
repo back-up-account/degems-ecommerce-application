@@ -21,7 +21,7 @@ if (!['postgres:', 'postgresql:'].includes(parsedUrl.protocol)
 const environment = { ...process.env, DATABASE_URL: databaseUrl };
 const commands = [
   ['prisma', ['migrate', 'deploy']],
-  ['vitest', ['run']],
+  ['vitest', ['run', 'tests/integration']],
 ];
 
 for (const [command, arguments_] of commands) {

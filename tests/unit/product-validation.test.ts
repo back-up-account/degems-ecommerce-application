@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { productInputSchema } from '@/lib/product-validation';
+import { productInputSchema } from '@api/lib/product-validation';
 
 const validProduct = {
   name: 'Test listing',

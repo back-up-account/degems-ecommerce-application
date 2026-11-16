@@ -25,6 +25,8 @@ model User {
   image              String?
   role               UserRole            @default(CUSTOMER)
   disabledAt         DateTime?
+  staffSetupRequired Boolean             @default(false)
+  staffSetupExpiresAt DateTime?
   authVersion        Int                 @default(0)
   mfaSecret          String?             @db.Text
   mfaEnabledAt       DateTime?

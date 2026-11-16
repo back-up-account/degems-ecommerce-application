@@ -1,0 +1,177 @@
+services:
+  storefront:
+    build:
+      context: .
+      dockerfile: Dockerfile.ui
+      args:
+        APP_NAME: storefront
+        BACKEND_API_URL: https://${API_DOMAIN:?Set API_DOMAIN to the backend API hostname}
+    restart: unless-stopped
+    environment:
+      BACKEND_API_URL: https://${API_DOMAIN:?Set API_DOMAIN to the backend API hostname}
+      HOSTNAME: 0.0.0.0
+      PORT: 3000
+    expose:
+      - "3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/healthz').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+    mem_limit: 512m
+    cpus: 1.0
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "5"
+
+  admin:
+    build:
+      context: .
+      dockerfile: Dockerfile.ui
+      args:
+        APP_NAME: admin
+        BACKEND_API_URL: https://${API_DOMAIN:?Set API_DOMAIN to the backend API hostname}
+    restart: unless-stopped
+    environment:
+      BACKEND_API_URL: https://${API_DOMAIN:?Set API_DOMAIN to the backend API hostname}
+      HOSTNAME: 0.0.0.0
+      PORT: 3000
+    expose:
+      - "3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/healthz').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+    mem_limit: 512m
+    cpus: 1.0
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "5"
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      NEXTAUTH_URL: https://${API_DOMAIN:?Set API_DOMAIN to the backend API hostname}
+      HOSTNAME: 0.0.0.0
+      PORT: 3000
+      METRICS_BEARER_TOKEN_FILE: /run/secrets/metrics_bearer_token
+    expose:
+      - "3000"
+    secrets:
+      - metrics_bearer_token
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+    mem_limit: 1g
+    cpus: 1.0
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "5"
+
+  nginx:
+    image: nginx:stable-alpine3.24
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+      storefront:
+        condition: service_healthy
+      admin:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      PUBLIC_DOMAIN: ${PUBLIC_DOMAIN:?Set PUBLIC_DOMAIN to the canonical HTTPS hostname}
+      API_DOMAIN: ${API_DOMAIN:?Set API_DOMAIN to the backend API hostname}
+      STOREFRONT_DOMAIN: ${STOREFRONT_DOMAIN:?Set STOREFRONT_DOMAIN to the storefront hostname}
+      ADMIN_DOMAIN: ${ADMIN_DOMAIN:?Set ADMIN_DOMAIN to the admin hostname}
+    volumes:
+      - ./deploy/nginx.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./deploy/certs:/etc/nginx/certs:ro
+    mem_limit: 256m
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "5"
+
+  prometheus:
+    image: prom/prometheus:v3.16.0
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=15d
+      - --web.enable-lifecycle
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus-data:/prometheus
+    secrets:
+      - metrics_bearer_token
+    expose:
+      - "9090"
+    depends_on:
+      api:
+        condition: service_healthy
+    mem_limit: 512m
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "5"
+
+  grafana:
+    image: grafana/grafana:13.3.1-slim
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD__FILE: /run/secrets/grafana_admin_password
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_SERVER_HTTP_ADDR: 0.0.0.0
+      GF_SERVER_HTTP_PORT: 3000
+    ports:
+      - "127.0.0.1:3001:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    secrets:
+      - grafana_admin_password
+    mem_limit: 512m
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "5"
+
+secrets:
+  metrics_bearer_token:
+    file: ${METRICS_BEARER_TOKEN_SOURCE:?Set METRICS_BEARER_TOKEN_SOURCE to a protected host file}
+  grafana_admin_password:
+    file: ${GRAFANA_ADMIN_PASSWORD_SOURCE:?Set GRAFANA_ADMIN_PASSWORD_SOURCE to a protected host file}
+
+volumes:
+  prometheus-data:
+  grafana-data:

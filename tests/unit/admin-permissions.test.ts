@@ -1,26 +1,39 @@
 import { describe, expect, it } from 'vitest';
-import { hasAdminPermission, isStaffRole } from '@/lib/admin-permissions';
+import { hasAdminPermission, isStaffRole, type AdminPermission } from '@api/lib/admin-permissions';
+import type { UserRole } from '@prisma/client';
+
+const permissions: AdminPermission[] = [
+  'catalog.view',
+  'catalog.manage',
+  'inventory.adjust',
+  'orders.view',
+  'orders.fulfill',
+  'orders.cancel',
+  'payments.confirm',
+  'payments.refund',
+  'customers.manage',
+  'delivery.manage',
+  'notifications.manage',
+  'staff.manage',
+  'security.manage',
+  'audit.view',
+];
+
+const expectedPermissions: Record<UserRole, AdminPermission[]> = {
+  ADMIN: permissions,
+  CATALOG_STAFF: ['catalog.view', 'catalog.manage'],
+  INVENTORY_STAFF: ['catalog.view', 'inventory.adjust'],
+  FULFILLMENT_STAFF: ['orders.view', 'orders.fulfill'],
+  FINANCE_STAFF: ['orders.view', 'payments.confirm', 'payments.refund'],
+  CUSTOMER: [],
+};
 
 describe('admin staff role permissions', () => {
-  it('grants each staff role only its operational capabilities', () => {
-    expect(hasAdminPermission('CATALOG_STAFF', 'catalog.manage')).toBe(true);
-    expect(hasAdminPermission('CATALOG_STAFF', 'inventory.adjust')).toBe(false);
-    expect(hasAdminPermission('CATALOG_STAFF', 'payments.confirm')).toBe(false);
-
-    expect(hasAdminPermission('INVENTORY_STAFF', 'inventory.adjust')).toBe(true);
-    expect(hasAdminPermission('INVENTORY_STAFF', 'catalog.manage')).toBe(false);
-
-    expect(hasAdminPermission('FULFILLMENT_STAFF', 'orders.fulfill')).toBe(true);
-    expect(hasAdminPermission('FULFILLMENT_STAFF', 'payments.confirm')).toBe(false);
-    expect(hasAdminPermission('FULFILLMENT_STAFF', 'orders.cancel')).toBe(false);
-
-    expect(hasAdminPermission('FINANCE_STAFF', 'payments.confirm')).toBe(true);
-    expect(hasAdminPermission('FINANCE_STAFF', 'payments.refund')).toBe(true);
-    expect(hasAdminPermission('FINANCE_STAFF', 'orders.fulfill')).toBe(false);
-    expect(hasAdminPermission('FINANCE_STAFF', 'orders.cancel')).toBe(false);
-
-    expect(hasAdminPermission('ADMIN', 'staff.manage')).toBe(true);
-    expect(hasAdminPermission('CUSTOMER', 'catalog.view')).toBe(false);
+  it('grants exactly the operational permissions assigned to each role', () => {
+    for (const role of Object.keys(expectedPermissions) as UserRole[]) {
+      const actual = permissions.filter((permission) => hasAdminPermission(role, permission));
+      expect(actual).toEqual(expectedPermissions[role]);
+    }
   });
 
   it('recognizes only non-customer roles as staff', () => {

@@ -7,21 +7,25 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { GET as getHealth } from '@/app/api/health/route';
 import { GET as getMetrics } from '@/app/api/metrics/route';
 import { POST as requestPasswordResetEndpoint } from '@/app/api/account/password-reset/route';
-import { authConfig } from '@/lib/auth';
+import { POST as adminLoginPreflight } from '@/app/api/auth/admin/preflight/route';
+import { authConfig } from '@api/lib/auth';
 import {
   completeCustomerRegistration,
+  forceStaffPasswordReset,
+  hasPendingStaffPasswordReset,
   registerCustomer,
   updatePassword,
-} from '@/lib/account-actions';
-import { accountRegistrationSchema } from '@/lib/account-validation';
-import { adjustVariantStock, updateProductDetails } from '@/lib/admin-products';
-import { cancelOrder, recordOrderRefund } from '@/lib/order-cancellation';
-import { advanceOrderFulfillment } from '@/lib/order-fulfillment';
-import { mergeGuestCartIntoAccount } from '@/lib/cart';
-import { productUpdateSchema } from '@/lib/product-validation';
-import { dispatchNotificationBatch, retryFailedNotification } from '@/lib/notifications';
-import { prisma } from '@/lib/prisma';
-import { hashPassword, verifyPassword } from '@/lib/security';
+} from '@api/lib/account-actions';
+import { createAdminTotpSecret, encryptAdminTotpSecret } from '@api/lib/admin-mfa';
+import { accountRegistrationSchema } from '@api/lib/account-validation';
+import { adjustVariantStock, updateProductDetails } from '@api/lib/admin-products';
+import { cancelOrder, recordOrderRefund } from '@api/lib/order-cancellation';
+import { advanceOrderFulfillment } from '@api/lib/order-fulfillment';
+import { mergeGuestCartIntoAccount } from '@api/lib/cart';
+import { productUpdateSchema } from '@api/lib/product-validation';
+import { dispatchNotificationBatch, retryFailedNotification } from '@api/lib/notifications';
+import { prisma } from '@api/lib/prisma';
+import { hashPassword, verifyPassword } from '@api/lib/security';
 
 const database = new PrismaClient();
 const fixedNow = new Date('2026-11-13T15:00:00.000Z');
@@ -50,6 +54,67 @@ afterEach(async () => {
 });
 
 describe('administration and notification integration', () => {
+  it('verifies staff passwords before requesting MFA without creating a session', async () => {
+    vi.stubEnv('ADMIN_MFA_ENCRYPTION_KEY', Buffer.alloc(32, 11).toString('base64'));
+    vi.stubEnv('NEXTAUTH_SECRET', 'test-secret-with-more-than-thirty-two-characters');
+    const email = `admin-preflight-${randomUUID()}@example.test`;
+    const user = await database.user.create({
+      data: {
+        email,
+        role: 'ADMIN',
+        password: await hashPassword('correct-password'),
+        mfaSecret: encryptAdminTotpSecret(createAdminTotpSecret()),
+        mfaEnabledAt: fixedNow,
+      },
+    });
+
+    try {
+      const crossSiteResponse = await adminLoginPreflight(new Request('http://localhost/api/auth/admin/preflight', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Sec-Fetch-Site': 'cross-site' },
+        body: JSON.stringify({ email, password: 'incorrect-password' }),
+      }));
+      expect(crossSiteResponse.status).toBe(403);
+
+      const validResponse = await adminLoginPreflight(new Request('http://localhost/api/auth/admin/preflight', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Sec-Fetch-Site': 'same-origin' },
+        body: JSON.stringify({ email, password: 'correct-password' }),
+      }));
+      expect(validResponse.status).toBe(200);
+      const challengeResult = await validResponse.json() as { status: string; challenge: string };
+      expect(challengeResult).toMatchObject({ status: 'mfa' });
+      expect(challengeResult.challenge).toEqual(expect.any(String));
+      expect(validResponse.headers.get('set-cookie')).toBeNull();
+
+      const credentialsProvider = authConfig.providers.find(
+        (provider) => typeof provider !== 'function' && provider.type === 'credentials',
+      );
+      if (!credentialsProvider || typeof credentialsProvider === 'function'
+        || credentialsProvider.type !== 'credentials') {
+        throw new Error('Credentials provider is not configured.');
+      }
+      expect(await credentialsProvider.authorize({
+        adminLogin: 'true',
+        adminChallenge: challengeResult.challenge,
+        mfaCode: 'not-a-code',
+      }, { body: {}, query: {}, headers: {}, method: 'POST' })).toBeNull();
+      expect(await database.adminAuthThrottle.findUniqueOrThrow({ where: { userId: user.id } }))
+        .toMatchObject({ failureCount: 1 });
+
+      const invalidResponse = await adminLoginPreflight(new Request('http://localhost/api/auth/admin/preflight', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Sec-Fetch-Site': 'same-origin' },
+        body: JSON.stringify({ email, password: 'incorrect-password' }),
+      }));
+      expect(invalidResponse.status).toBe(401);
+      expect(await database.adminAuthThrottle.findUniqueOrThrow({ where: { userId: user.id } }))
+        .toMatchObject({ failureCount: 2 });
+    } finally {
+      await database.user.delete({ where: { id: user.id } });
+    }
+  });
+
   it('requires MFA for staff sessions and permits a properly enrolled staff role', async () => {
     const user = await database.user.create({
       data: {
@@ -173,9 +238,12 @@ describe('administration and notification integration', () => {
         featured: false,
         published: true,
       });
-      await updateProductDetails(product.id, input);
+      await updateProductDetails(product.id, input, admin.id);
       expect(await database.productVariant.findUniqueOrThrow({ where: { id: variant.id } }))
         .toMatchObject({ active: false, stock: 7 });
+      expect(await database.auditLog.findFirst({
+        where: { actorId: admin.id, entityId: product.id, action: 'product.updated' },
+      })).not.toBeNull();
     } finally {
       await database.product.delete({ where: { id: product.id } });
       await database.category.delete({ where: { id: category.id } });
@@ -276,6 +344,115 @@ describe('administration and notification integration', () => {
       await database.verificationToken.deleteMany({ where: { identifier: `email-verification:${email}` } });
       await database.pendingAccount.deleteMany({ where: { email } });
       await database.user.deleteMany({ where: { email } });
+    }
+  });
+
+  it('forces staff password reset, revokes sessions, and queues a protected reset email', async () => {
+    const unique = randomUUID();
+    const admin = await database.user.create({
+      data: { email: `reset-owner-${unique}@example.test`, role: 'ADMIN' },
+    });
+    const email = `reset-staff-${unique}@example.test`;
+    const staff = await database.user.create({
+      data: {
+        email,
+        role: 'CATALOG_STAFF',
+        emailVerified: fixedNow,
+        password: await hashPassword('existing-staff-password'),
+      },
+    });
+    const identifier = `staff-password-reset:${email}`;
+    vi.stubEnv('NEXTAUTH_SECRET', 'test-secret-with-more-than-thirty-two-characters');
+
+    try {
+      expect(await forceStaffPasswordReset(staff.id, admin.id)).toBe(email);
+      const updatedStaff = await database.user.findUniqueOrThrow({ where: { id: staff.id } });
+      expect(updatedStaff.authVersion).toBe(1);
+      expect(await hasPendingStaffPasswordReset(email)).toBe(true);
+      expect(await database.verificationToken.findFirst({ where: { identifier } })).toMatchObject({
+        token: expect.stringMatching(/^[a-f0-9]{64}$/),
+      });
+      await database.verificationToken.updateMany({
+        where: { identifier },
+        data: { expires: fixedNow },
+      });
+      expect(await hasPendingStaffPasswordReset(email)).toBe(true);
+      const credentialsProvider = authConfig.providers.find(
+        (provider) => typeof provider !== 'function' && provider.type === 'credentials',
+      );
+      if (!credentialsProvider || typeof credentialsProvider === 'function'
+        || credentialsProvider.type !== 'credentials') {
+        throw new Error('Credentials provider is not configured.');
+      }
+      expect(await credentialsProvider.authorize({
+        email,
+        password: 'existing-staff-password',
+        mfaCode: '',
+      }, { body: {}, query: {}, headers: {}, method: 'POST' })).toBeNull();
+      expect(await database.adminAuthThrottle.count({ where: { userId: staff.id } })).toBe(0);
+      expect(await database.notification.findFirst({
+        where: { recipient: email, eventType: 'staff_password_reset', status: 'queued' },
+      })).toMatchObject({ secretPayload: expect.stringMatching(/^v1\./) });
+      expect(await database.auditLog.findFirst({
+        where: { actorId: admin.id, entityId: staff.id, action: 'staff.password.reset.required' },
+      })).not.toBeNull();
+
+      const sessionCallback = authConfig.callbacks?.session;
+      if (!sessionCallback) throw new Error('Auth session callback is not configured.');
+      const staleSession = await sessionCallback({
+        session: {
+          user: { id: staff.id, role: 'CATALOG_STAFF', email },
+          expires: new Date(Date.now() + 60_000).toISOString(),
+        } satisfies Session,
+        token: { sub: staff.id, authVersion: 0 } satisfies JWT,
+        user: { id: staff.id, email, emailVerified: staff.emailVerified } satisfies AdapterUser,
+        newSession: undefined,
+        trigger: 'update',
+      });
+      expect(staleSession.user).toMatchObject({ id: '', role: 'CUSTOMER' });
+    } finally {
+      await database.notification.deleteMany({ where: { recipient: email } });
+      await database.verificationToken.deleteMany({ where: { identifier } });
+      await database.auditLog.deleteMany({ where: { entityId: staff.id } });
+      await database.user.deleteMany({ where: { id: { in: [staff.id, admin.id] } } });
+    }
+  });
+
+  it('consumes a forced staff password reset token once', async () => {
+    const unique = randomUUID();
+    const email = `forced-reset-${unique}@example.test`;
+    const rawToken = randomBytes(32).toString('base64url');
+    const tokenHash = createHash('sha256').update(rawToken).digest('hex');
+    const staff = await database.user.create({
+      data: {
+        email,
+        role: 'FINANCE_STAFF',
+        emailVerified: fixedNow,
+        password: await hashPassword('before-forced-reset-password'),
+      },
+    });
+
+    try {
+      await database.verificationToken.create({
+        data: {
+          identifier: `staff-password-reset:${email}`,
+          token: tokenHash,
+          expires: new Date(Date.now() + 60_000),
+        },
+      });
+      expect(await updatePassword(rawToken, 'after-forced-reset-password')).toBe(true);
+      expect(await updatePassword(rawToken, 'another-forced-reset-password')).toBe(false);
+      expect(await hasPendingStaffPasswordReset(email)).toBe(false);
+      const updatedStaff = await database.user.findUniqueOrThrow({ where: { id: staff.id } });
+      expect(updatedStaff.authVersion).toBe(1);
+      expect(await verifyPassword('after-forced-reset-password', updatedStaff.password ?? '')).toBe(true);
+      expect(await database.auditLog.findFirst({
+        where: { entityId: staff.id, action: 'account.password.reset.completed' },
+      })).not.toBeNull();
+    } finally {
+      await database.verificationToken.deleteMany({ where: { identifier: `staff-password-reset:${email}` } });
+      await database.auditLog.deleteMany({ where: { entityId: staff.id } });
+      await database.user.deleteMany({ where: { id: staff.id } });
     }
   });
 

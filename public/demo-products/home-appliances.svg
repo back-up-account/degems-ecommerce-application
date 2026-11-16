@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="800" viewBox="0 0 800 800" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="90" y1="45" x2="720" y2="760" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#DDE8E4"/>
+      <stop offset="1" stop-color="#AFC6BD"/>
+    </linearGradient>
+    <linearGradient id="glass" x1="302" y1="258" x2="510" y2="494" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#E9F5F1"/>
+      <stop offset="1" stop-color="#B9D4CA"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="800" rx="40" fill="url(#bg)"/>
+  <circle cx="642" cy="155" r="116" fill="#F7FCFA" fill-opacity=".55"/>
+  <path d="M0 639c157-68 254 62 412 3 163-61 248-46 388-1v159H0V639Z" fill="#6F9185" fill-opacity=".23"/>
+  <ellipse cx="400" cy="651" rx="193" ry="25" fill="#39584E" fill-opacity=".18"/>
+  <path d="M307 206h186l-15 80H322l-15-80Z" fill="#57534E"/>
+  <path d="M330 278h140l61 213a35 35 0 0 1-34 45H303a35 35 0 0 1-34-45l61-213Z" fill="url(#glass)" stroke="#57534E" stroke-width="16"/>
+  <path d="M319 389h163l25 92a34 34 0 0 1-33 43H302a34 34 0 0 1-33-43l25-92Z" fill="#90B9A8" fill-opacity=".72"/>
+  <path d="M400 389v102m-42-68 42 39 42-39" stroke="#F5FBF8" stroke-opacity=".88" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="337" y="518" width="126" height="82" rx="18" fill="#44403C"/>
+  <circle cx="400" cy="559" r="19" fill="#D4A45E"/>
+  <rect x="202" y="647" width="396" height="62" rx="31" fill="#F7FCFA" fill-opacity=".82"/>
+  <text x="400" y="686" text-anchor="middle" fill="#425E54" font-family="Arial,sans-serif" font-size="21" font-weight="700" letter-spacing="5">HOME APPLIANCES</text>
+  <text x="44" y="754" fill="#425E54" font-family="Arial,sans-serif" font-size="16" font-weight="700" letter-spacing="4">PREVIEW IMAGE</text>
+</svg>

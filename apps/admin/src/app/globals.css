@@ -1,0 +1,68 @@
+@import 'tailwindcss';
+@source '../components';
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --color-stone-50: #f8f8f4;
+  --color-stone-100: #f1f2ec;
+  --color-stone-200: #e1e5da;
+  --color-stone-300: #cdd4c8;
+  --color-stone-400: #9ca99a;
+  --color-stone-500: #68776b;
+  --color-stone-600: #536355;
+  --color-stone-700: #3d4d41;
+  --color-stone-800: #293b30;
+  --color-stone-900: #173328;
+  --color-stone-950: #0e241b;
+  --color-brass-100: #f4eddd;
+  --color-brass-200: #e6d5ae;
+  --color-brass-500: #a8844e;
+  --color-brass-600: #876637;
+}
+
+@layer base {
+  :root {
+    --background: #f8f8f4;
+    --foreground: #172b21;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  }
+
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  a {
+    text-decoration: none;
+  }
+
+  img {
+    display: block;
+    max-width: 100%;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+
+  :focus-visible {
+    outline: 2px solid #a8844e;
+    outline-offset: 3px;
+  }
+}

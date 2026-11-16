@@ -4,25 +4,25 @@ import type { AdapterUser } from 'next-auth/adapters';
 import type { Session } from 'next-auth';
 import type { JWT } from 'next-auth/jwt';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import { guestCheckoutSchema } from '@/lib/checkout-validation';
-import { authConfig } from '@/lib/auth';
-import { updatePassword } from '@/lib/account-actions';
-import { cancelOrder } from '@/lib/order-cancellation';
+import { guestCheckoutSchema } from '@api/lib/checkout-validation';
+import { authConfig } from '@api/lib/auth';
+import { updatePassword } from '@api/lib/account-actions';
+import { cancelOrder } from '@api/lib/order-cancellation';
 import {
   clearAdminLoginFailures,
   isAdminLoginBlocked,
   recordAdminLoginFailure,
-} from '@/lib/admin-auth-throttle';
+} from '@api/lib/admin-auth-throttle';
 import {
   consumeAdminSecondFactor,
   encryptAdminTotpSecret,
   generateAdminRecoveryCodes,
   hashAdminRecoveryCode,
-} from '@/lib/admin-mfa';
-import { expirePendingOrders, createPendingOrder, hashInvoiceToken } from '@/lib/orders';
-import { confirmOrderPayment, reportBankTransfer } from '@/lib/payments';
-import { prisma } from '@/lib/prisma';
-import { hashPassword, verifyPassword } from '@/lib/security';
+} from '@api/lib/admin-mfa';
+import { expirePendingOrders, createPendingOrder, hashInvoiceToken } from '@api/lib/orders';
+import { confirmOrderPayment, reportBankTransfer } from '@api/lib/payments';
+import { prisma } from '@api/lib/prisma';
+import { hashPassword, verifyPassword } from '@api/lib/security';
 
 const database = new PrismaClient();
 

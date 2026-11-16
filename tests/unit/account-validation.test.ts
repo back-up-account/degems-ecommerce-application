@@ -4,7 +4,7 @@ import {
   accountRegistrationSchema,
   accountCompletionInputSchema,
   passwordResetSchema,
-} from '@/lib/account-validation';
+} from '@api/lib/account-validation';
 
 describe('account input validation', () => {
   it('normalizes registration emails and requires a matching password at verification', () => {
